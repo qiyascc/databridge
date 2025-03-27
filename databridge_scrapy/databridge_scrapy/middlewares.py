@@ -111,16 +111,52 @@ class DatabridgeDownloaderMiddleware:
 # databridge/databridge/middlewares.py
 
 
-class CustomUserAgentMiddleware:
-    def __init__(self, user_agent=''):
-        self.user_agent = user_agent or UserAgent().random
+# databridge/middlewares.py
 
-    @classmethod
-    def from_crawler(cls, crawler):
-        return cls(crawler.settings.get('USER_AGENT', ''))
+from scrapy import signals
+from scrapy.downloadermiddlewares.retry import RetryMiddleware
+from scrapy.exceptions import IgnoreRequest
+from urllib.parse import urlparse
+import random
+import base64
+import logging
+from fake_useragent import UserAgent
 
-    def process_request(self, request, spider):
-        request.headers['User-Agent'] = self.user_agent
+class CustomRetryMiddleware(RetryMiddleware):
+    def __init__(self, settings):
+        super().__init__(settings)
+        self.max_retry_times = settings.getint('RETRY_TIMES')
+        self.retry_http_codes = settings.getlist('RETRY_HTTP_CODES')
+        self.priority_adjust = settings.getint('RETRY_PRIORITY_ADJUST')
+
+    def process_response(self, request, response, spider):
+        if response.status in self.retry_http_codes:
+            reason = f"Status code {response.status} received"
+            spider.logger.warning(f"Retrying due to {response.status} status code")
+            return self._retry(request, reason, spider) or response
+        return response
+
+    def _retry(self, request, reason, spider):
+        retries = request.meta.get('retry_times', 0) + 1
+
+        if retries <= self.max_retry_times:
+            spider.logger.debug(f"Retrying {request.url} (attempt {retries}/{self.max_retry_times})")
+            
+            # Proxy ve diğer meta verileri temizle
+            new_request = request.copy()
+            new_request.meta['retry_times'] = retries
+            new_request.dont_filter = True
+            
+            # Proxy bilgilerini sıfırla
+            if 'proxy' in new_request.meta:
+                del new_request.meta['proxy']
+            if 'current_proxy' in new_request.meta:
+                del new_request.meta['current_proxy']
+                
+            return new_request
+        else:
+            spider.logger.error(f"Gave up retrying {request.url} after {retries} attempts")
+            raise IgnoreRequest
 
 class ProxyMiddleware:
     def __init__(self, proxies=None):
@@ -137,14 +173,13 @@ class ProxyMiddleware:
         return middleware
 
     def spider_opened(self, spider):
-        spider.logger.info(f"Spider opened: {spider.name}")
         spider.logger.info(f"Available proxies: {len(self.proxies)}")
 
     def spider_closed(self, spider):
         if self.failed_proxies:
-            spider.logger.warning(f"Failed proxies during crawl: {self.failed_proxies}")
+            spider.logger.warning(f"Failed proxies: {len(self.failed_proxies)}")
         else:
-            spider.logger.info("No proxies failed during crawl")
+            spider.logger.info("All proxies worked successfully")
 
     def process_request(self, request, spider):
         if 'proxy' not in request.meta and not request.meta.get('dont_proxy', False):
@@ -156,10 +191,10 @@ class ProxyMiddleware:
     def get_random_proxy(self):
         active_proxies = [p for p in self.proxies if p not in self.failed_proxies]
         
-        if not active_proxies:
+        if not active_proxies and self.proxies:
+            self.logger.warning("All proxies failed, recycling proxy list")
             self.failed_proxies.clear()
             active_proxies = self.proxies.copy()
-            self.logger.warning("All proxies failed, resetting and trying again")
             
         return random.choice(active_proxies) if active_proxies else None
 
@@ -169,7 +204,7 @@ class ProxyMiddleware:
             credentials = f"{parsed.username}:{parsed.password}"
             proxy = f"http://{parsed.hostname}:{parsed.port}"
             
-            encoded_credentials = base64.b64encode(credentials.encode('utf-8')).decode('utf-8')
+            encoded_credentials = base64.b64encode(credentials.encode()).decode()
             request.headers['Proxy-Authorization'] = f'Basic {encoded_credentials}'
             request.meta['proxy'] = proxy
         else:
@@ -178,33 +213,38 @@ class ProxyMiddleware:
         request.meta['current_proxy'] = proxy_url
 
     def process_response(self, request, response, spider):
-        if response.status in [403, 407, 429, 500, 502, 503, 504]:
+        if response.status in [403, 407, 429]:
             proxy = request.meta.get('current_proxy')
             if proxy:
                 self.failed_proxies.add(proxy)
-                spider.logger.warning(f"Proxy failed and removed from pool: {proxy}")
+                spider.logger.warning(f"Marked proxy as failed: {proxy}")
+                
+            # RetryMiddleware'in tetiklenmesi için response döndür
+            return response
+        
         return response
 
     def process_exception(self, request, exception, spider):
         proxy = request.meta.get('current_proxy')
         if proxy:
             self.failed_proxies.add(proxy)
-            spider.logger.warning(f"Proxy connection error, removed from pool: {proxy}")
+            spider.logger.warning(f"Proxy connection failed: {proxy}")
         
-        new_proxy = self.get_random_proxy()
-        if new_proxy:
-            self.set_proxy(request, new_proxy)
-            return request
-class CustomRetryMiddleware(RetryMiddleware):
-    def __init__(self, settings):
-        super().__init__(settings)
-        # Özel retry davranışları eklenebilir
-        self.max_retry_times = settings.getint('RETRY_TIMES', 3)
-        self.retry_http_codes = settings.getlist('RETRY_HTTP_CODES', [500, 502, 503, 504, 522, 524, 408])
+        # Yeni proxy ile yeniden deneme
+        new_request = request.copy()
+        new_request.dont_filter = True
+        if 'proxy' in new_request.meta:
+            del new_request.meta['proxy']
+        if 'current_proxy' in new_request.meta:
+            del new_request.meta['current_proxy']
+            
+        return new_request
 
-    def delete_failed_proxy(self, request):
-        # Başarısız proxy'yi listeden çıkar
-        proxy = request.meta.get('proxy', '')
-        if proxy and hasattr(self, 'proxies'):
-            self.proxies.remove(proxy)
+class CustomUserAgentMiddleware:
+    def __init__(self):
+        self.ua = UserAgent()
+        
+    def process_request(self, request, spider):
+        request.headers['User-Agent'] = self.ua.random
+        spider.logger.debug(f"Using User-Agent: {request.headers['User-Agent']}")
 

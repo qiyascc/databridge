@@ -1,6 +1,8 @@
 *.jsonl
+*.jl
 *.json
 *.sqlite\
+
 venv/
 .env
 */__pycache__/

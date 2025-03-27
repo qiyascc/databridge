@@ -1,5 +1,5 @@
 from scrapy_djangoitem import DjangoItem
-from lcwaikiki.models import ProductSitemap, ProductLocation, Product, ProductSize
+from lcwaikiki.models import ProductSitemap, ProductLocation, Product
 
 class ProductSitemapItem(DjangoItem):
     django_model = ProductSitemap
@@ -10,5 +10,3 @@ class ProductLocationItem(DjangoItem):
 class ProductItem(DjangoItem):
     django_model = Product
 
-class ProductSizeItem(DjangoItem):
-    django_model = ProductSize

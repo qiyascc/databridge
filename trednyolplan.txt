@@ -1,0 +1,5 @@
+- Kategoriyani cek lcden.
+- trendyolun kategoriyalarini cek.
+- kategoriyada uygun olani cek.
+- Kategoriyaya uygun atributlari cek, 
+- 

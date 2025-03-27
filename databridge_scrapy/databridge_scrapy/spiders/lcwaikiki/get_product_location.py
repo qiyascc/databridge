@@ -1,15 +1,22 @@
 import scrapy
 from lxml import etree
 from datetime import datetime
+from scrapy_djangoitem import DjangoItem
+from lcwaikiki.models import Product
+from asgiref.sync import sync_to_async
+from databridge_scrapy.databridge_scrapy.items import ProductLocationItem
 
 class ProductLocationSpider(scrapy.Spider):
     name = 'lc_get_product_location'
     
     custom_settings = {
-        'FEED_FORMAT': 'jsonlines',
-        'FEED_URI': 'lcwaikiki_products_%(batch_id)d.jl',
+        'ITEM_PIPELINES': {
+            'lcwaikiki.pipelines.DjangoPipeline': 300,
+        },
         'CONCURRENT_REQUESTS': 4,
-        'DOWNLOAD_DELAY': 0.5
+        'DOWNLOAD_DELAY': 1,
+        'RETRY_TIMES': 3,
+        'TWISTED_REACTOR': 'twisted.internet.asyncioreactor.AsyncioSelectorReactor'
     }
 
     start_urls = [
@@ -42,23 +49,16 @@ class ProductLocationSpider(scrapy.Spider):
 
             for url_elem in root.findall('.//url'):
                 try:
-                    item = {
-                        'location': url_elem.findtext('loc', default=''),
-                        'lc_last_modification': url_elem.findtext('lastmod', default=''),
-                        'change_frequence': url_elem.findtext('changefreq', default=''),
-                        'priority': url_elem.findtext('priority', default=''),
-                        'system_last_modification': current_timestamp,
-                        'batch_id': batch_id
-                    }
-                    
-                    if item['priority']:
-                        try:
-                            item['priority'] = float(item['priority'])
-                        except ValueError:
-                            item['priority'] = None
+                    item = ProductLocationItem()  # Dictionary yerine DjangoItem kullanın
+                    item['location'] = url_elem.findtext('loc', '')
+                    item['lc_last_modification'] = url_elem.findtext('lastmod', None)
+                    item['change_frequence'] = url_elem.findtext('changefreq', None)
+                    item['priority'] = float(url_elem.findtext('priority', 0)) if url_elem.findtext('priority') else None
+                    item['system_last_modification'] = datetime.now()
+                    item['batch_id'] = response.meta['batch_id']
                     
                     yield item
-                    
+                        
                 except Exception as e:
                     self.logger.error(f"Error processing individual URL: {str(e)}")
                     yield {

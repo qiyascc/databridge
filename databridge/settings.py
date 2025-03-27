@@ -148,14 +148,16 @@ SCRAPY_SETTINGS = {
         'lcwaikiki.pipelines.DjangoPipeline': 300,
         'databridge_scrapy.databridge_scrapy.pipelines.MongoDBPipeline': 300,
     },
+    'RETRY_TIMES': 3,
+    'RETRY_HTTP_CODES': [403, 500, 502, 503, 504, 522, 524, 408],
     'DOWNLOADER_MIDDLEWARES': {
         'databridge_scrapy.databridge_scrapy.middlewares.CustomUserAgentMiddleware': 543,
+        'TWISTED_REACTOR': 'twisted.internet.asyncioreactor.AsyncioSelectorReactor',
         'databridge_scrapy.databridge_scrapy.middlewares.ProxyMiddleware': 542,
         'databridge_scrapy.databridge_scrapy.middlewares.CustomRetryMiddleware': 541,
         'scrapy.downloadermiddlewares.retry.RetryMiddleware': None,
+        'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': 110,
     },
-    'MONGODB_URI': 'mongodb+srv://Q:q@test.2xj08.mongodb.net/?retryWrites=true&w=majority&appName=test',
-    'MONGODB_DATABASE': 'lcwaikiki',
     'PROXIES': [
         # Your proxy list here
     ]

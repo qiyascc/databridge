@@ -24,31 +24,46 @@ class ProductLocation(models.Model):
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
+from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
+
+class ProductSitemap(models.Model):
+    location = models.URLField(max_length=500)
+    last_modification = models.DateTimeField(null=True, blank=True)
+    update_date = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Product Sitemap"
+        verbose_name_plural = "Product Sitemaps"
+
+class ProductLocation(models.Model):
+    location = models.URLField(max_length=500)
+    lc_last_modification = models.DateTimeField(null=True, blank=True)
+    change_frequence = models.CharField(max_length=20, null=True, blank=True)
+    priority = models.FloatField(null=True, blank=True)
+    system_last_modification = models.DateTimeField(auto_now=True)
+    batch_id = models.IntegerField(default=0)
+    
+    class Meta:
+        verbose_name = "Product Location"
+        verbose_name_plural = "Product Locations"
+
 class Product(models.Model):
-    # Basic Product Information
     url = models.URLField(max_length=500, unique=True)
     title = models.CharField(max_length=255)
     category = models.CharField(max_length=100)
     color = models.CharField(max_length=50)
-    
-    # Pricing and Availability
     price = models.DecimalField(max_digits=10, decimal_places=2)
     discount_ratio = models.FloatField(
-        default=0, 
-        validators=[
-            MinValueValidator(0),
-            MaxValueValidator(100)
-        ]
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
     )
     in_stock = models.BooleanField(default=False)
-    
-    # Images
     images = models.JSONField(default=list)
-    
-    # Timestamp and Status
+    sizes = models.JSONField(default=dict)
     timestamp = models.DateTimeField(auto_now=True)
     status = models.CharField(
-        max_length=20, 
+        max_length=20,
         default='success',
         choices=[
             ('success', 'Success'),
@@ -56,9 +71,7 @@ class Product(models.Model):
             ('error', 'Error')
         ]
     )
-    
-    # Advanced Size Management
-    sizes = models.JSONField(default=dict, help_text="Structured size information")
+
     
     def add_size(self, size_name, size_id, general_stock, option_reference, barcodes=None, city_stocks=None):
         """
