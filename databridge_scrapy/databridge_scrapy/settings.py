@@ -56,11 +56,21 @@ CONCURRENT_REQUESTS_PER_DOMAIN = 8
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 DOWNLOADER_MIDDLEWARES = {
     'databridge_scrapy.databridge_scrapy.middlewares.CustomUserAgentMiddleware': 543,
-    'databridge_scrapy.databridge_scrapy.middlewares.ProxyMiddleware': 542,
+    'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': 110,
+    'databridge_scrapy.databridge_scrapy.middlewares.ProxyMiddleware': 100,
     'databridge_scrapy.databridge_scrapy.middlewares.CustomRetryMiddleware': 541,
     'scrapy.downloadermiddlewares.retry.RetryMiddleware': None,  # Varsayılan retry middleware'i devre dışı bırak
 }
 
+ITEM_PIPELINES = {
+    'lcwaikiki.pipelines.DjangoPipeline': 800,
+
+}
+
+
+
+
+    
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
 #EXTENSIONS = {
@@ -202,9 +212,7 @@ PROXIES = [
 ]
 
 # Diğer ayarlar aynı kalacak, sadece pipeline'ları güncelleyin
-ITEM_PIPELINES = {
-    'databridge_scrapy.databridge_scrapy.pipelines.DjangoPipeline': 800,
-}
+
 
 # Django ayarlarını ekleyin
 import os

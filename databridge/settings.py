@@ -80,9 +80,18 @@ DATABASES = {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
     }
+    # 'default': {
+    #     'ENGINE': 'djongo',
+    #     'NAME': 'test',
+    #     'CLIENT': {
+    #         'host': 'mongodb+srv://Q:q@test.2xj08.mongodb.net/test?retryWrites=true&w=majority',
+    #         'username': 'Q',
+    #         'password': 'q',
+    #         'authSource': 'admin',
+    #         'authMechanism': 'SCRAM-SHA-1'
+    #     },
+    # }
 }
-
-
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
@@ -126,9 +135,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Scrapy settings
 SCRAPY_SETTINGS = {
-    'BOT_NAME': "databridge",
-    'SPIDER_MODULES': ["databridge.spiders"],
-    'NEWSPIDER_MODULE': "databridge.spiders",
+    'BOT_NAME': "databridge_scrapy",
+    'SPIDER_MODULES': ["databridge_scrapy.databridge_scrapy.spiders"],
+    'NEWSPIDER_MODULE': "databridge.databridge_scrapy.spiders",
     'ROBOTSTXT_OBEY': False,
     'CONCURRENT_REQUESTS': 16,
     'DOWNLOAD_TIMEOUT': 30,
@@ -137,11 +146,12 @@ SCRAPY_SETTINGS = {
     'CONCURRENT_REQUESTS_PER_DOMAIN': 8,
     'ITEM_PIPELINES': {
         'lcwaikiki.pipelines.DjangoPipeline': 300,
+        'databridge_scrapy.databridge_scrapy.pipelines.MongoDBPipeline': 300,
     },
     'DOWNLOADER_MIDDLEWARES': {
-        'databridge.middlewares.CustomUserAgentMiddleware': 543,
-        'databridge.middlewares.ProxyMiddleware': 542,
-        'databridge.middlewares.CustomRetryMiddleware': 541,
+        'databridge_scrapy.databridge_scrapy.middlewares.CustomUserAgentMiddleware': 543,
+        'databridge_scrapy.databridge_scrapy.middlewares.ProxyMiddleware': 542,
+        'databridge_scrapy.databridge_scrapy.middlewares.CustomRetryMiddleware': 541,
         'scrapy.downloadermiddlewares.retry.RetryMiddleware': None,
     },
     'MONGODB_URI': 'mongodb+srv://Q:q@test.2xj08.mongodb.net/?retryWrites=true&w=majority&appName=test',
@@ -150,3 +160,4 @@ SCRAPY_SETTINGS = {
         # Your proxy list here
     ]
 }
+
