@@ -39,37 +39,34 @@ from scrapy.exceptions import DropItem
 from django.db import transaction
 import logging
 from .models import Product
-
-logger = logging.getLogger(__name__)
-
 class AsyncProductPipeline:
     async def process_item(self, item, spider):
+        spider.logger.debug(f"Processing item: {dict(item)}")
+        
         try:
-            await self._save_product(item)
+            product, created = await self._save_product(item)
+            if created:
+                spider.logger.info(f"✅ Yeni ürün kaydedildi: {item.get('url')}")
+            else:
+                spider.logger.info(f"🔄 Ürün güncellendi: {item.get('url')}")
             return item
+        except IntegrityError as e:
+            spider.logger.error(f"❌ Veritabanı çakışması: {str(e)}")
+            raise DropItem(f"Integrity error: {str(e)}")
         except Exception as e:
-            spider.logger.error(f"Database error: {str(e)}")
-            raise DropItem(f"Failed to save item: {str(e)}")
+            spider.logger.error(f"❌ Beklenmeyen hata: {str(e)}", exc_info=True)
+            raise DropItem(f"Unexpected error: {str(e)}")
 
     @sync_to_async
     def _save_product(self, item):
+        from django.db import transaction
+        from lcwaikiki.models import Product
+        
+        item_dict = dict(item)
+        item_dict = {k: v for k, v in item_dict.items() if v is not None}
+        
         with transaction.atomic():
-            defaults = {
-                'title': item.get('title'),
-                'category': item.get('category'),
-                'color': item.get('color'),
-                'price': item.get('price'),
-                'discount_ratio': item.get('discount_ratio'),
-                'in_stock': item.get('in_stock'),
-                'images': item.get('images'),
-                'sizes': item.get('sizes'),
-                'status': item.get('status')
-            }
-            
-            product, created = Product.objects.update_or_create(
-                url=item['url'],
-                defaults=defaults
+            return Product.objects.update_or_create(
+                url=item_dict['url'],
+                defaults=item_dict
             )
-            
-            action = "Created" if created else "Updated"
-            logger.info(f"{action} product: {product.url}")

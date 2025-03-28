@@ -54,18 +54,24 @@ CONCURRENT_REQUESTS_PER_DOMAIN = 8
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-DOWNLOADER_MIDDLEWARES = {
+DOWNLOADER_MIDDLEWARES: {
     'databridge_scrapy.databridge_scrapy.middlewares.CustomUserAgentMiddleware': 543,
-    'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': 110,
-    'databridge_scrapy.databridge_scrapy.middlewares.ProxyMiddleware': 100,
+    'TWISTED_REACTOR': 'twisted.internet.asyncioreactor.AsyncioSelectorReactor',
+    'databridge_scrapy.databridge_scrapy.middlewares.ProxyMiddleware': 542,
     'databridge_scrapy.databridge_scrapy.middlewares.CustomRetryMiddleware': 541,
-    'scrapy.downloadermiddlewares.retry.RetryMiddleware': None,  # Varsayılan retry middleware'i devre dışı bırak
+    'scrapy.downloadermiddlewares.retry.RetryMiddleware': None,
+    'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': 110,
 }
 
 ITEM_PIPELINES = {
     'lcwaikiki.pipelines.DjangoPipeline': 800,
 
 }
+CUSTOM_403_RETRY_ENABLED = True
+
+SPIDER_MODULES: ["databridge_scrapy.databridge_scrapy.spiders"]
+NEWSPIDER_MODULE: "databridge.databridge_scrapy.spiders"
+RETRY_HTTP_CODES: [403, 500, 502, 503, 504, 522, 524, 408]
 
 
 
